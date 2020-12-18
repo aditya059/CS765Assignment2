@@ -122,7 +122,6 @@ def register_with_k_seeds():   # where k = floor(n / 2) + 1
 def join_atmost_4_peers(complete_peer_list):
     i = 0
     limit = random.randint(1, 4)
-    print("Peers Connected List : ")
     for peer in complete_peer_list:
         try:
             if i < limit:
@@ -131,13 +130,12 @@ def join_atmost_4_peers(complete_peer_list):
                 ADDRESS = (str(peer_addr[0]), int(peer_addr[1]))
                 sock.connect(ADDRESS)
                 peers_connected.append( Peer(complete_peer_list[i]) )
-                print(peer)
                 i += 1
                 message = "New Connect Request From:"+str(MY_IP)+":"+str(PORT)
                 sock.send(message.encode('utf-8'))       
                 print(sock.recv(20).decode('utf-8'))                       # Connect Accepted Message Received here                       
                 received_block_k = sock.recv(128).decode('utf-8')          # Received Block k
-                print("Received Block_K", received_block_k)
+                print("Received Block_K = ", received_block_k)
                 thread = threading.Thread(target = put_block_in_pending_queue, args = [received_block_k])
                 thread.start()
                 sock.close()
@@ -297,13 +295,11 @@ def put_block_in_pending_queue(received_block):
 def validate(received_block):
     message = received_block.split(":")
     if str(message[0]) == "0x0000" and str(message[2]) >= str(timestamp() - 3600) and str(message[2]) <= str(timestamp() + 3600):
-        print("Adding Genesis to db ", received_block)
         DataBase[0] = DB_Entry(received_block, '0x9e1c', 0)  
         write_output_to_file(received_block)
         return True
     for db_entry in DataBase:
         if str(message[0]) == str(db_entry.block_hash) and str(message[2]) >= str(timestamp() - 3600) and str(message[2]) <= str(timestamp() + 3600):
-            print("Adding to db ", received_block)
             add_block_to_database(received_block, hash_of_message(received_block), db_entry.height + 1)
             write_output_to_file(received_block)
             return True
@@ -311,23 +307,18 @@ def validate(received_block):
 
 # To synchronise with current blockchain height
 def sync_with_current_blockchain_height():
-    print("Sync")
     sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     peer_addr = peers_connected[0].address.split(":")
     ADDRESS = (str(peer_addr[0]), int(peer_addr[1]))
     sock.connect(ADDRESS)
-    print("Send")
     message = "Send Previous Blocks"
     sock.send(message.encode('utf-8'))  
-    no_of_prev_block = int(sock.recv(5).decode('utf-8'))
-    print(no_of_prev_block)           
+    no_of_prev_block = int(sock.recv(5).decode('utf-8'))         
     for i in range(no_of_prev_block):
         received_block = sock.recv(40).decode('utf-8')
         validate(received_block)
     sock.close()
-    print("sync done")
     
-
 # Generate block and send it to connected peers
 def generate_and_send_block():
 
@@ -413,8 +404,6 @@ def mining():
     else:
         MessageList.append(hash_of_message(str(DataBase[-1].block)))
 
-    print("Start Mining")
-
     while(True):
         current_longest_chain_length = DataBase[-1].height
         thread = threading.Thread(target = handle_pending_queue)
@@ -465,6 +454,10 @@ def create_jobs():
 read_addr_of_seeds()
 n = total_available_seeds()
 register_with_k_seeds()                        # Where k = floor(n / 2) + 1
+
+print("Peers Connected List : ")
+for peer in peers_connected:
+    print(peer.address)
 
 blockchain = Blockchain()
 
